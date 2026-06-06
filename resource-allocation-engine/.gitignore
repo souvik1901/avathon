@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# Node / Vite
+node_modules/
+dist/
+# benchmark dumps
+*.bench.json
+# personal prep / reference notes (not part of the deliverable)
+DECISION_RATIONALE.md

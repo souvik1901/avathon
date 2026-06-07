@@ -1,11 +1,48 @@
 # Algorithm Comparison — Overview
 
-A concise comparison of the allocation strategies: what each does, what it optimises, and
-**when the difference between them actually matters**. Numbers come from
+A concise comparison of the allocation strategies: what each does, what it optimises,
+**when the difference between them actually matters**, and **which I recommend**. Numbers come from
 `benchmarks/run_benchmarks.py` (8 trucks × 12 orders, seed 7, unless noted).
 
-> This is the high-level write-up. For the implementation deep-dive (annotated, line-by-line
-> code walkthroughs of every algorithm), see **[`ALGORITHMS.md`](./ALGORITHMS.md)**.
+---
+
+## Algorithm comparison insight — and what I recommend
+
+**The core tension.** *Greedy* processes orders one‑by‑one and takes the locally cheapest truck each
+time — fast, but blind to the future, so an early pick can strand a later order. *Hungarian* is a
+**batch** method: it weighs **all** truck↔order pairings at once and finds the **globally** cheapest
+one‑to‑one assignment. *Min‑Cost Flow* generalises Hungarian so one truck can carry several orders.
+
+**When does each win?**
+- **Greedy** — when resources are **loose** (trucks ≫ orders, dispersed), decisions are
+  **online/streaming**, or scale is huge. There its local picks are already near‑optimal.
+- **Hungarian** — the **one‑to‑one** problem when it's **contested or scarce**: provably optimal and,
+  via SciPy's compiled core, the fastest at our scale.
+- **Min‑Cost Flow** — the moment **a truck can carry more than one order**: the only method that
+  raises coverage by consolidating (92% vs Hungarian's 67% in *batching*).
+
+**When does the difference matter most?** When the system is **under stress.** Greedy's gap to the
+optimum is tiny when resources are loose (**+9.8%**, abundant) and balloons under pressure
+(**+13.7%** contested, **+18.8%** tight deadlines). *The tighter the contention, the more a global
+method is worth* — when trucks are plentiful, the cheap heuristic is good enough.
+
+**Which is "most optimal"?** **Hungarian** is provably optimal for one‑to‑one (the baseline every
+gap is measured against). **Min‑Cost Flow** is optimal for the realistic *capacitated* case and
+**strictly generalises** Hungarian — identical at one‑order‑per‑truck, better when batching is
+possible. **Greedy** is the fast heuristic, not optimal.
+
+**My recommendation (the approach I'm suggesting):**
+
+| Priority | Use | Why |
+| --- | --- | --- |
+| **Default — batch dispatch** | **Min‑Cost Flow** | Matches Hungarian's optimum at one order/truck and **covers more** when trucks can batch — it never loses to Hungarian and often wins. |
+| **Online / streaming, or huge scale** | **Greedy** | Commits each order instantly; near‑optimal when resources are loose; degrades only under contention. |
+| **Exact one‑to‑one baseline** | **Hungarian** | Provably optimal and fastest at tested scale; the reference for the optimality gap. |
+| **Optimiser already in place, want a fallback** | **Hybrid** (primary + fill) | Rescues a primary's unserved orders using leftover capacity; helps when there's slack, a no‑op otherwise. |
+
+> **Bottom line:** ship **Min‑Cost Flow** as the production default (most general, never worse than
+> Hungarian), keep **Greedy** for the real‑time path, and treat **Hungarian** as the gold‑standard
+> baseline. A better algorithm earns its keep precisely when the fleet is under pressure.
 
 ---
 

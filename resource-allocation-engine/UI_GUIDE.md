@@ -210,20 +210,26 @@ This is the "why" behind a single decision. It shows:
    watch coverage jump because one truck batches nearby orders. It actually beats the one-to-one
    optimum here."*
 
-7. **Hybrid Lab — combining methods (45s).** Open **Hybrid Lab**, keep **Batching**, set
-   **Hungarian → Greedy**. *"Phase 1 runs the optimal one-to-one plan; Phase 2 uses greedy to fill
-   leftover truck capacity."* Read the **verdict** and the **combined-vs-alone** table: *"Hungarian
-   alone served 8; the hybrid reaches 11, objective down ~14%. Combining two simple methods recovered
-   most of the consolidation benefit."* Then switch profile to **Contested**: *"And here it
-   honestly says 'no gain' — there's no spare capacity to fill. Good tools tell you when they don't
-   help."*
+7. **Hybrid Lab — combining methods (60s).** Open **Hybrid Lab**; set **Phase 1 (primary) =
+   Hungarian**, **Phase 2 (fill) = Greedy**. *"Primary solves everything; the fill phase mops up the
+   orders it left, using leftover truck capacity."* Show the contrast by flipping the sidebar profile:
+   - **① Batching → it helps.** Profile → **Batching**. Green **verdict**, and the *combined‑vs‑alone*
+     table reads: *"Hungarian alone 8/12 (obj 765); the fill phase adds **3** orders → hybrid **11/12
+     (92%)**, objective **658** — about −14% over Hungarian alone."* Click a new route → its note says
+     *"Phase 2 — filled by greedy."*
+   - **② Contested → no gain.** Profile → **Contested**. Amber **verdict**: *"phase‑2 fills = **0**,
+     the hybrid is identical to Hungarian (8/12, obj 733). With 8 trucks all used there's no spare
+     capacity to fill — and the tool says so honestly."*
+   - *(If asked why greedy‑alone (597) is cheaper than the hybrid (658) in batching: greedy is already
+     capacity‑aware and Min‑Cost Flow is optimal‑capacitated — the hybrid only **rescues the primary**,
+     it doesn't beat a purpose‑built capacity method. That's the honest framing.)*
 
 8. **Simulator — all regimes at once (30s).** Open the **Simulator**, select **Contested +
    Abundant + Batching**. *"One screen, three regimes."* Point at the cards: *"Greedy's gap is small
    in abundant, bigger in contested, and flips negative in batching where consolidation wins."*
    Click the **Batching** card to drop into its full breakdown.
 
-9. **Close (15s).** *"One cost model, four searches, a hybrid, and a simulator — a clear, measured
+9. **Close (15s).** *"One cost model, three searches, a hybrid, and a simulator — a clear, measured
    answer to 'which method, when?'"*
 
 ---
@@ -244,3 +250,68 @@ This is the "why" behind a single decision. It shows:
   weights or pick *Abundant*.
 - **Map empty** → give it a second after changing inputs (the amber light means it's solving), or
   hit **Run**.
+
+---
+
+## 10. Scenario profiles in depth
+
+The five profiles are **engineered experiments** — each isolates one condition so a particular
+algorithm difference becomes visible. They all place trucks and orders on real Kolkata-metro land
+hubs; what changes is *how many* trucks, *where the orders cluster*, *how tight the deadlines are*,
+and *whether a truck can carry several orders*. Numbers below are the defaults (8 trucks × 12
+orders, seed 7); the profile may override the truck count as noted.
+
+### Contested  *(the default)*
+- **Sets up:** orders concentrated on **two** adjacent hubs while the 8 trucks are spread across the
+  whole metro; one truck = one order. Loose-ish deadlines.
+- **What happens:** only a few trucks are near the demand, and with 8 trucks for 12 orders, **all
+  methods cap at 8/12 = 67% coverage** (the fleet runs out of trucks). The difference is **cost**:
+  greedy's myopic early picks force costlier later assignments.
+- **Numbers:** coverage 67% for all; objective — greedy **833 (+13.7%)** vs Hungarian/MCF **733**.
+- **Watch:** the **Objective** card and its gap, *not* coverage. This is the "equal coverage,
+  different cost" case.
+
+### Abundant
+- **Sets up:** trucks **far outnumber** orders (~20 trucks for 12), dispersed across all hubs; loose
+  deadlines. one truck = one order.
+- **What happens:** almost every order has a cheap nearby idle truck, so local choices rarely
+  collide → greedy is **near-optimal**. Hungarian/MCF hit full coverage; greedy occasionally
+  strands one order.
+- **Numbers:** Hungarian/MCF **100% · obj 376**; greedy **92% · obj 413 (+9.8%)**.
+- **Watch:** the small gap — proof that *when resources are loose, the cheap heuristic is fine*.
+
+### Scarce  *(the subtle one)*
+- **Sets up:** **fewer trucks than orders** (~7 for 12), dispersed; one truck = one order.
+- **What happens:** not everything *can* be served (coverage capped ~58% for all). Greedy and
+  Hungarian tie on coverage, **but greedy spends more** — because it burns extra travel to protect
+  **high-priority** orders, while Hungarian minimises total cost.
+- **Numbers:** all **58% (7/12)**; greedy **obj 810 (+6.0%)**, priority-served **51%**;
+  Hungarian/MCF **obj 765**, priority-served **46%**.
+- **Watch:** compare the **Priority served** card against the cost gap — greedy is "worse" on cost
+  yet *better* on priority. This is why coverage, cost, and priority are reported **separately**.
+
+### Tight windows
+- **Sets up:** same fleet as contested, but **very short deadlines** (due-by 60–110 min). one
+  truck = one order.
+- **What happens:** distant trucks can't arrive in time, so feasibility and **lateness** dominate.
+  Greedy's poor routing now also breaks deadlines → its **largest cost gap**.
+- **Numbers:** all **67%**; greedy **obj 955 (+18.8%)**; Hungarian/MCF **obj 804** (and a lower
+  on-time rate shows the SLA pressure).
+- **Watch:** the **On-time rate** and **avg/max lateness** cards, plus the biggest objective gap.
+
+### Batching  *(the only coverage-diverging one)*
+- **Sets up:** orders cluster on a few adjacent hubs **and each truck can carry up to 3 orders**
+  (`capacity_orders = 3`). 8 trucks.
+- **What happens:** one-to-one **Hungarian is capped at 8/12 = 67%** (one order per truck), but
+  **Min-Cost Flow consolidates** several nearby orders onto one truck and reaches **92%** — *beating*
+  the one-to-one optimum. Capacity-aware greedy also reaches 92%.
+- **Numbers:** Hungarian **67% · obj 765**; Min-Cost Flow **92% · obj 588 (−23%)**; greedy
+  **92% · obj 597 (−22%)**. (Negative gap = beat one-to-one Hungarian.)
+- **Watch:** this is the one profile where **coverage itself diverges** — the case that justifies
+  Min-Cost Flow and the Hybrid Lab's fill phase.
+
+> **The throughline:** the gap between a cheap heuristic and the optimum is **small when resources
+> are loose (abundant) and large when they're tight (contested/tight)** — and the one-to-one model's
+> ceiling only breaks when a truck can carry several orders (batching). Full numbers and the
+> code-level reasoning are in [`ALGORITHMS.md`](./ALGORITHMS.md); the concise version is in
+> [`ALGORITHMS_OVERVIEW.md`](./ALGORITHMS_OVERVIEW.md).

@@ -26,14 +26,12 @@ export default function HybridLab(p: Props) {
     ? p.combined.assignments.filter((a) => (a.explanation.note ?? "").includes("Phase 2")).length
     : 0;
 
-  // verdict vs the better of the two components alone
+  // verdict: did the Phase-2 fill improve on running the primary alone?
   let verdict: { cls: string; text: ReactNode } | null = null;
   if (p.combined && p.primaryAlone && p.secondaryAlone) {
     const c = p.combined.metrics;
-    const bestAloneCov = Math.max(p.primaryAlone.metrics.coverage, p.secondaryAlone.metrics.coverage);
-    const bestAloneObj = Math.min(p.primaryAlone.metrics.objective, p.secondaryAlone.metrics.objective);
-    const covGain = c.coverage - bestAloneCov;
-    const objGain = bestAloneObj - c.objective; // positive = hybrid cheaper
+    const covGain = c.coverage - p.primaryAlone.metrics.coverage;
+    const objGain = p.primaryAlone.metrics.objective - c.objective; // + = hybrid cheaper than primary alone
     if (covGain > 0.001 || objGain > 0.5) {
       verdict = {
         cls: "win",
@@ -43,7 +41,7 @@ export default function HybridLab(p: Props) {
             Phase 2 ({ALGO_SHORT[p.secondary]}) filled <b>{phase2}</b> order
             {phase2 === 1 ? "" : "s"} that {ALGO_SHORT[p.primary]} left behind, lifting coverage to{" "}
             <b>{(c.coverage * 100).toFixed(0)}%</b>
-            {covGain > 0.001 && <> (+{(covGain * 100).toFixed(0)} pts over the best single method)</>} and{" "}
+            {covGain > 0.001 && <> (+{(covGain * 100).toFixed(0)} pts over {ALGO_SHORT[p.primary]} alone)</>} and{" "}
             {objGain > 0.5 ? <>cutting the objective by <b>{objGain.toFixed(0)}</b>.</> : <>holding the objective steady.</>}
           </>
         ),

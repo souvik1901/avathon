@@ -81,8 +81,9 @@ export default function AlgorithmPage(p: Props) {
             {p.busy && <><span className="spacer" /><span className="spinner" /></>}
           </div>
           <div style={{ padding: 12 }}>
-            {p.scenario && shown ? (
-              <MapView scenario={p.scenario} assignments={shown.assignments}
+            {p.scenario ? (
+              // Draw the scenario as soon as it loads; routes only appear once solved.
+              <MapView scenario={p.scenario} assignments={shown?.assignments ?? []}
                 color={accent} height={600} onPick={p.onPick} />
             ) : (
               <div className="skeleton" style={{ height: 600 }} />
@@ -141,8 +142,12 @@ export default function AlgorithmPage(p: Props) {
                   </>
                 )}
               </>
-            ) : (
+            ) : p.busy ? (
               <div className="empty-state"><span className="spinner" /> solving…</div>
+            ) : (
+              <div className="empty-state">
+                Scenario ready — press <b>▶ Run {ALGO_SHORT[p.algoKey]}</b> to solve it.
+              </div>
             )}
           </div>
         </div>

@@ -109,6 +109,10 @@ export default function SimulatorPage(p: Props) {
 
       {p.selected.length === 0 ? (
         <div className="empty-state">Select one or more scenarios above to simulate.</div>
+      ) : Object.keys(p.results).length === 0 && !p.busy ? (
+        <div className="empty-state">
+          {p.selected.length} scenario(s) selected — press <b>▶ Run simulation</b> to solve them.
+        </div>
       ) : (
         <div className="sim-grid">
           {p.selected.map((k) => (

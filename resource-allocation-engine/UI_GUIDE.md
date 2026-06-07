@@ -310,6 +310,36 @@ orders, seed 7); the profile may override the truck count as noted.
 - **Watch:** this is the one profile where **coverage itself diverges** — the case that justifies
   Min-Cost Flow and the Hybrid Lab's fill phase.
 
+### Telling the look-alikes apart: Contested vs Scarce
+Both have *more orders than trucks*, both cap below 100% coverage, and in both, greedy ties on
+coverage but costs more — so they're easy to confuse. The difference isn't the truck count; it's
+**where the orders are**, and that changes *what each scenario tests*.
+
+- **Contested = a distribution problem.** Orders are **clustered on two hubs** while trucks are
+  spread across the metro, so many orders **compete for the same few nearby trucks**. There are a
+  fair number of trucks (8); the challenge is allocating the well-placed ones without wasting them.
+  A greedy early pick grabs a nearby truck a later order needed → that order is forced onto a far,
+  expensive truck. Same coverage as optimal, but greedy is **+13.7% more expensive**. *It stresses
+  **how you route** under contention — the local-vs-global cost story.*
+- **Scarce = a supply problem.** Orders are **dispersed** (no hot-spot competition), but there are
+  simply **too few trucks** (7 for 12) — five orders must be dropped no matter how cleverly you
+  allocate. Little collision, so the cost gap is smaller (**+6%**); the binding question is *which*
+  orders to serve. Here greedy actually **protects more high-priority orders (51% vs 46%)** because
+  it processes by priority, while Hungarian just minimises cost. *It stresses **who you serve and
+  whether you protect the urgent ones** — the coverage-and-priority story.*
+
+> **Restaurant analogy:** *Contested* = enough tables overall, but everyone wants the two window
+> seats (fight over the desirable spots). *Scarce* = only 7 tables for 12 parties (some simply can't
+> be seated; you choose who). One stresses *routing*; the other stresses *triage*.
+
+| | **Contested** | **Scarce** |
+| --- | --- | --- |
+| Trucks / orders | 8 / 12 | 7 / 12 |
+| Where orders sit | **clustered** on 2 hubs | **dispersed** |
+| Root pressure | geographic **contention** | absolute **shortage** |
+| Greedy vs optimal | same coverage, **+13.7% cost** | same coverage, **+6% cost**, but **+priority** |
+| What it teaches | local-vs-global → **how you route** | cost-vs-priority → **who you serve** |
+
 > **The throughline:** the gap between a cheap heuristic and the optimum is **small when resources
 > are loose (abundant) and large when they're tight (contested/tight)** — and the one-to-one model's
 > ceiling only breaks when a truck can carry several orders (batching). Full numbers and the

@@ -126,13 +126,18 @@ export default function HybridLab(p: Props) {
           {p.busy && <><span className="spacer" /><span className="spinner" /></>}
         </div>
         <div style={{ padding: 12 }}>
-          {p.scenario && p.combined ? (
-            <MapView scenario={p.scenario} assignments={p.combined.assignments}
+          {p.scenario ? (
+            <MapView scenario={p.scenario} assignments={p.combined?.assignments ?? []}
               color={HYBRID_ACCENT} height={560} onPick={p.onPick} />
           ) : (
             <div className="skeleton" style={{ height: 560 }} />
           )}
         </div>
+        {p.scenario && !p.combined && !p.busy && (
+          <div className="empty-state">
+            Scenario ready — press <b>▶ Run hybrid</b> to solve both phases.
+          </div>
+        )}
       </div>
     </div>
   );

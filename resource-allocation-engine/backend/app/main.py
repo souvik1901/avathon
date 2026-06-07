@@ -17,6 +17,7 @@ Swagger UI is auto-served at /docs.
 from __future__ import annotations
 
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,14 +25,25 @@ from pydantic import BaseModel
 
 from .engine import run_algorithm, run_comparison, run_hybrid
 from .generators import generate_scenario
+from .logging_utils import get_logger
 from .models import (AlgorithmInfo, AllocationResult, CompareResult, CostConfig,
                      Order, Scenario, ScenarioGenerateRequest, Truck)
 from .store import InMemoryStore
 from .strategies import STRATEGIES
 
+log = get_logger()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    log.info("Resource Allocation Engine ready | strategies: %s",
+             ", ".join(STRATEGIES.keys()))
+    yield
+
+
 app = FastAPI(title="Resource Allocation Engine", version="1.0.0",
               description="Delivery-fleet resource allocation with comparable "
-                          "Greedy / Hungarian / Min-Cost-Flow strategies.")
+                          "Greedy / Hungarian / Min-Cost-Flow strategies.",
+              lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -91,6 +103,8 @@ def create_scenario(scenario: Scenario) -> Scenario:
 def generate(req: ScenarioGenerateRequest) -> Scenario:
     sc = generate_scenario(req.profile, req.n_trucks, req.n_orders, req.seed, req.name)
     store.put(sc)
+    log.info("GEN    scenario=%s | profile=%s seed=%s -> %d trucks, %d orders",
+             sc.id, req.profile, req.seed, len(sc.trucks), len(sc.orders))
     return sc
 
 

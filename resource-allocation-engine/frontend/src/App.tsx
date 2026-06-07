@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "./api/client";
 import ControlPanel from "./components/ControlPanel";
 import AlgorithmPage from "./components/AlgorithmPage";
@@ -63,7 +63,11 @@ export default function App() {
   const [simExpanded, setSimExpanded] = useState<string | null>(null);
 
   const [drawer, setDrawer] = useState<{ algo: string; a: Assignment } | null>(null);
-  const [busy, setBusy] = useState(false);
+  // In-flight request counter. Every async op does +1 on start and -1 in a
+  // finally that always runs, so `busy` can never get stranded true even when
+  // effects overlap, get cancelled, or double-fire under StrictMode.
+  const [inflight, setInflight] = useState(0);
+  const busy = inflight > 0;
   const [error, setError] = useState<string | null>(null);
 
   // ---- load algorithm metadata once ----
@@ -71,72 +75,65 @@ export default function App() {
 
   // ---- (re)generate the scenario whenever its defining inputs change ----
   async function loadScenario() {
-    setBusy(true); setError(null);
+    setInflight((n) => n + 1); setError(null);
     try {
       const sc = await api.generate(profile, nTrucks, nOrders, seed);
       setScenario(sc);
       setSingle({}); setCompare(null); setHybrid(null);  // invalidate caches
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      setBusy(false);
+    } finally {
+      setInflight((n) => n - 1);
     }
   }
+  // Regenerate + display the scenario whenever its defining inputs change. This
+  // only draws the trucks/orders on the map — it does NOT solve. Solving happens
+  // on demand when the user clicks Run.
   useEffect(() => { loadScenario(); /* eslint-disable-next-line */ }, [profile, nTrucks, nOrders, seed]);
 
-  // ---- compute the active tab's result; keyed so it only re-runs when relevant inputs change ----
-  const computeKey = useMemo(() => {
-    if (!scenario) return "";
-    const w = JSON.stringify(weights);
-    if (tab === "compare") return `cmp|${scenario.id}|${w}|${[...compareSel].sort().join(",")}`;
-    if (tab === "hybrid") return `hyb|${scenario.id}|${w}|${primary}|${secondary}`;
-    if (tab === "simulator") return `sim|${[...simSel].sort().join(",")}|${nTrucks}|${nOrders}|${seed}|${w}`;
-    return `one|${tab}|${scenario.id}|${w}`;
-  }, [scenario, tab, weights, compareSel, primary, secondary, simSel, nTrucks, nOrders, seed]);
-
+  // Changing the cost weights invalidates any solved results (they were computed
+  // under the old weights), so we clear them — the user re-clicks Run to apply.
   useEffect(() => {
-    if (!scenario || !computeKey) return;
-    let cancelled = false;
-    (async () => {
-      setBusy(true); setError(null);
-      try {
-        if (tab === "compare") {
-          const sel = compareSel.length ? compareSel : [...ALGO_TABS];
-          const cmp = await api.compare(scenario.id, sel, weights);
-          if (cancelled) return;
-          setCompare(cmp);
-          if (!sel.includes(focus)) setFocus(sel[0]);
-        } else if (tab === "hybrid") {
-          const [combined, primaryAlone, secondaryAlone] = await Promise.all([
-            api.hybrid(scenario.id, primary, secondary, weights),
-            api.allocate(scenario.id, primary, weights),
-            api.allocate(scenario.id, secondary, weights),
-          ]);
-          if (cancelled) return;
-          setHybrid({ combined, primaryAlone, secondaryAlone });
-        } else if (tab === "simulator") {
-          const entries = await Promise.all(simSel.map(async (pf) => {
-            const sc = await api.generate(pf, nTrucks, nOrders, seed);
-            const cmp = await api.compare(sc.id, ALGO_TABS, weights);
-            return [pf, { scenario: sc, compare: cmp }] as const;
-          }));
-          if (cancelled) return;
-          setSim(Object.fromEntries(entries));
-        } else {
-          // single algo — run via compare against hungarian so the gap is filled
-          const algos = tab === "hungarian" ? ["hungarian"] : [tab, "hungarian"];
-          const cmp = await api.compare(scenario.id, algos, weights);
-          if (cancelled) return;
-          setSingle((m) => ({ ...m, [tab]: cmp.results[tab] }));
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setBusy(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    setSingle({}); setCompare(null); setHybrid(null); setSim({});
     // eslint-disable-next-line
-  }, [computeKey]);
+  }, [weights]);
+
+  // ---- solve the active tab ON DEMAND (only when the user clicks Run) ----
+  async function run() {
+    if (!scenario || busy) return;
+    setInflight((n) => n + 1); setError(null);
+    try {
+      if (tab === "compare") {
+        const sel = compareSel.length ? compareSel : [...ALGO_TABS];
+        const cmp = await api.compare(scenario.id, sel, weights);
+        setCompare(cmp);
+        if (!sel.includes(focus)) setFocus(sel[0]);
+      } else if (tab === "hybrid") {
+        const [combined, primaryAlone, secondaryAlone] = await Promise.all([
+          api.hybrid(scenario.id, primary, secondary, weights),
+          api.allocate(scenario.id, primary, weights),
+          api.allocate(scenario.id, secondary, weights),
+        ]);
+        setHybrid({ combined, primaryAlone, secondaryAlone });
+      } else if (tab === "simulator") {
+        const entries = await Promise.all(simSel.map(async (pf) => {
+          const sc = await api.generate(pf, nTrucks, nOrders, seed);
+          const cmp = await api.compare(sc.id, ALGO_TABS, weights);
+          return [pf, { scenario: sc, compare: cmp }] as const;
+        }));
+        setSim(Object.fromEntries(entries));
+      } else {
+        // single algo — run via compare against hungarian so the gap is filled
+        const algos = tab === "hungarian" ? ["hungarian"] : [tab, "hungarian"];
+        const cmp = await api.compare(scenario.id, algos, weights);
+        setSingle((m) => ({ ...m, [tab]: cmp.results[tab] }));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setInflight((n) => n - 1);
+    }
+  }
 
   const toggleCmp = (k: string) =>
     setCompareSel((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
@@ -179,7 +176,7 @@ export default function App() {
         nOrders={nOrders} setNOrders={setNOrders}
         seed={seed} setSeed={setSeed}
         weights={weights} setWeights={setWeights}
-        onRun={loadScenario} busy={busy} runLabel={runLabel}
+        onRun={run} busy={busy} runLabel={runLabel}
         showProfile={tab !== "simulator"}
       >
         {tab === "compare" && (

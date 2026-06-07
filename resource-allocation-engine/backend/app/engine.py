@@ -9,17 +9,53 @@ import time
 
 from .cost import INFEASIBLE, CostMatrix, build_cost_matrix
 from .explain import build_assignment
+from .logging_utils import get_logger
 from .metrics import compute_metrics
 from .models import (AllocationResult, CompareResult, CostConfig, Scenario)
 from .strategies import get_strategy
 
+log = get_logger()
+
+
+def _weights_summary(cfg: CostConfig, scenario: Scenario) -> str:
+    origin = "custom" if cfg is not scenario.weights else "default"
+    return (f"w_dist={cfg.w_dist:g} w_late={cfg.w_late:g} w_idle={cfg.w_idle:g} "
+            f"w_prio={cfg.w_prio:g} [{origin}]")
+
+
+def _log_matrix(cm: CostMatrix, tag: str) -> None:
+    n, m = cm.cost.shape
+    feasible = int(cm.feasible_mask().sum())
+    total = n * m
+    pct = (feasible / total * 100.0) if total else 0.0
+    log.info("  %s cost matrix: %d trucks x %d orders = %d cells | "
+             "feasible=%d (%.0f%%) infeasible=%d",
+             tag, n, m, total, feasible, pct, total - feasible)
+
+
+def _log_result(algorithm: str, r: AllocationResult) -> None:
+    mx = r.metrics
+    log.info("  ✓ %-14s %2d/%-2d served (%.0f%%) | cost=%.1f obj=%.1f | "
+             "on-time=%.0f%% avg-late=%.0fmin | fleet=%.0f%% prio=%.0f%% | %.2fms",
+             algorithm, mx.assigned_count, mx.total_orders, mx.coverage * 100,
+             mx.total_cost, mx.objective, mx.on_time_rate * 100,
+             mx.avg_lateness_min, mx.fleet_utilisation * 100,
+             mx.priority_weighted_fulfilment * 100, mx.solve_ms)
+
 
 def run_algorithm(scenario: Scenario, algorithm: str,
-                  weights: CostConfig | None = None) -> AllocationResult:
+                  weights: CostConfig | None = None,
+                  _quiet: bool = False) -> AllocationResult:
     cfg = weights or scenario.weights
     cm = build_cost_matrix(scenario.trucks, scenario.orders,
                            scenario.decision_time, cfg)
     strategy = get_strategy(algorithm)
+
+    if not _quiet:
+        log.info("SOLVE  algorithm=%s  scenario=%s (name=%r seed=%s)",
+                 algorithm, scenario.id, scenario.name, scenario.seed)
+        log.info("  weights: %s", _weights_summary(cfg, scenario))
+        _log_matrix(cm, "->")
 
     t0 = time.perf_counter()
     assignments, unassigned = strategy.allocate(cm)
@@ -27,17 +63,34 @@ def run_algorithm(scenario: Scenario, algorithm: str,
 
     metrics = compute_metrics(algorithm, assignments,
                               scenario.trucks, scenario.orders, solve_ms, cfg)
-    return AllocationResult(
+    result = AllocationResult(
         algorithm=algorithm,
         assignments=assignments,
         unassigned_order_ids=unassigned,
         metrics=metrics,
     )
+    if not _quiet:
+        _log_result(algorithm, result)
+    return result
 
 
 def run_comparison(scenario: Scenario, algorithms: list[str],
                    weights: CostConfig | None = None) -> CompareResult:
-    results = {algo: run_algorithm(scenario, algo, weights) for algo in algorithms}
+    cfg = weights or scenario.weights
+    t_all = time.perf_counter()
+    log.info("=" * 68)
+    log.info("COMPARE scenario=%s (name=%r seed=%s) | %d trucks x %d orders | "
+             "algorithms=[%s]", scenario.id, scenario.name, scenario.seed,
+             len(scenario.trucks), len(scenario.orders), ", ".join(algorithms))
+    log.info("  weights: %s", _weights_summary(cfg, scenario))
+    cm = build_cost_matrix(scenario.trucks, scenario.orders,
+                           scenario.decision_time, cfg)
+    _log_matrix(cm, "->")
+
+    results = {algo: run_algorithm(scenario, algo, weights, _quiet=True)
+               for algo in algorithms}
+    for algo, res in results.items():
+        _log_result(algo, res)
 
     # Headline metric: how much worse is each algorithm's objective vs
     # Hungarian's optimal one-to-one objective on the same scenario? The
@@ -45,7 +98,7 @@ def run_comparison(scenario: Scenario, algorithms: list[str],
     # correctly counted against an algorithm (not rewarded as "cheaper").
     baseline = results.get("hungarian")
     if baseline is None:
-        baseline = run_algorithm(scenario, "hungarian", weights)
+        baseline = run_algorithm(scenario, "hungarian", weights, _quiet=True)
     base_obj = baseline.metrics.objective
     for res in results.values():
         if abs(base_obj) > 1e-9:
@@ -54,6 +107,14 @@ def run_comparison(scenario: Scenario, algorithms: list[str],
         else:
             res.metrics.optimality_gap = 0.0
 
+    log.info("  baseline=hungarian obj=%.1f | optimality gaps (obj vs baseline):",
+             base_obj)
+    for algo, res in results.items():
+        gap = res.metrics.optimality_gap or 0.0
+        verdict = ("= optimal" if abs(gap) < 1e-9 else
+                   f"{'beats' if gap < 0 else 'behind'} baseline")
+        log.info("     %-14s %+.1f%%  (%s)", algo, gap * 100, verdict)
+    log.info("DONE compare in %.2fms", (time.perf_counter() - t_all) * 1000.0)
     return CompareResult(scenario_id=scenario.id, results=results)
 
 
@@ -100,10 +161,20 @@ def run_hybrid(scenario: Scenario, primary: str, secondary: str,
                            scenario.decision_time, cfg)
     prim, sec = get_strategy(primary), get_strategy(secondary)
 
+    log.info("=" * 68)
+    log.info("HYBRID scenario=%s | phase1=%s (solve all) -> phase2=%s (fill gaps)",
+             scenario.id, primary, secondary)
+    log.info("  weights: %s", _weights_summary(cfg, scenario))
+    _log_matrix(cm, "->")
+
     t0 = time.perf_counter()
     pairs_a = prim.solve(cm)
     residual = _residual_matrix(cm, pairs_a)
+    n_free = int((residual.feasible_mask().any(axis=0)).sum())
+    log.info("  phase 1 (%s): assigned %d orders | %d orders still open, "
+             "feasible for phase 2", primary, len(pairs_a), n_free)
     pairs_b = sec.solve(residual)
+    log.info("  phase 2 (%s): filled %d more order(s)", secondary, len(pairs_b))
     solve_ms = (time.perf_counter() - t0) * 1000.0
 
     # The residual already masks served orders, but guard against any overlap.
@@ -123,5 +194,8 @@ def run_hybrid(scenario: Scenario, primary: str, secondary: str,
     label = f"hybrid:{primary}+{secondary}"
     metrics = compute_metrics(label, assignments, scenario.trucks,
                               scenario.orders, solve_ms, cfg)
-    return AllocationResult(algorithm=label, assignments=assignments,
-                            unassigned_order_ids=unassigned, metrics=metrics)
+    result = AllocationResult(algorithm=label, assignments=assignments,
+                              unassigned_order_ids=unassigned, metrics=metrics)
+    _log_result(label, result)
+    log.info("DONE hybrid in %.2fms", solve_ms)
+    return result

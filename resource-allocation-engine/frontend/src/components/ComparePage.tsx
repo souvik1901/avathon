@@ -14,10 +14,19 @@ interface Props {
 
 export default function ComparePage(p: Props) {
   if (!p.scenario || !p.compare) {
+    if (p.busy || !p.scenario) {
+      return (
+        <div className="page">
+          <div className="skeleton" style={{ height: 120, marginBottom: 16 }} />
+          <div className="skeleton" style={{ height: 360 }} />
+        </div>
+      );
+    }
     return (
       <div className="page">
-        <div className="skeleton" style={{ height: 120, marginBottom: 16 }} />
-        <div className="skeleton" style={{ height: 360 }} />
+        <div className="empty-state">
+          Scenario ready — press <b>▶ Compare</b> to run the selected algorithms side by side.
+        </div>
       </div>
     );
   }

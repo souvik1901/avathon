@@ -9,5 +9,3 @@ dist/
 .vite/
 # benchmark dumps
 *.bench.json
-# personal prep / reference notes (not part of the deliverable)
-DECISION_RATIONALE.md

@@ -1,0 +1,10 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+numpy>=1.26
+scipy>=1.11
+ortools>=9.9
+# dev / test
+pytest>=8.0
+hypothesis>=6.100
+httpx>=0.27

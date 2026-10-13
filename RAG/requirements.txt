@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# RAG Crash Course pipeline — dependencies
+# (mirrors the requirement.txt built incrementally in the video)
+# ---------------------------------------------------------------------------
+
+# LangChain core framework + community loaders
+# (langchain 1.x moved the text splitters into langchain-text-splitters —
+#  the video's `from langchain.text_splitter import ...` is now
+#  `from langchain_text_splitters import ...`)
+langchain
+langchain-core
+langchain-community
+langchain-text-splitters
+
+# PDF parsing libraries (PyPDFLoader / PyMuPDFLoader backends)
+pypdf
+pymupdf
+
+# Open-source embedding model runtime (all-MiniLM-L6-v2 lives on Hugging Face)
+sentence-transformers
+
+# Vector stores: ChromaDB (used in the notebook) and FAISS (used in src/ pipeline)
+chromadb
+faiss-cpu
+
+# LLM integration — Groq-hosted open models, exactly like the video
+langchain-groq
+
+# .env loading for the GROQ_API_KEY
+python-dotenv
+
+# Numerics + cosine-similarity helper used during retrieval
+numpy
+scikit-learn
+
+# Excel support for the multi-format assignment (data_loader reads .xlsx rows)
+openpyxl
+
+# Word .docx support (Docx2txtLoader); python-docx generates the sample file
+docx2txt
+python-docx
+
+# Agentic RAG — LangGraph builds the routing/grading/rewriting state machine
+langgraph
+
+# Typesense — optional standalone search server (needs a running server)
+typesense
+
+# Jupyter kernel support so the notebooks can run inside this venv
+ipykernel
+jupyter

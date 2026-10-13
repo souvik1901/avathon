@@ -1,0 +1,7 @@
+Machine Learning Overview
+
+Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed. There are three main types of machine learning: supervised learning, unsupervised learning, and reinforcement learning.
+
+Supervised learning uses labeled training data to learn a mapping from inputs to outputs. Common tasks include classification and regression. Unsupervised learning finds hidden patterns in unlabeled data, for example through clustering or dimensionality reduction. Reinforcement learning trains agents to make sequences of decisions by rewarding desired behaviors.
+
+Deep learning, a further subset based on multi-layer neural networks, has driven recent breakthroughs in computer vision, natural language processing, and speech recognition.

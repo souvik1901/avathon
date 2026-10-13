@@ -1,0 +1,24 @@
+{
+  "faqs": [
+    {
+      "category": "chunking",
+      "question": "What is chunk overlap and why is it needed?",
+      "answer": "Chunk overlap is the number of characters shared between two consecutive chunks. It preserves continuity so a sentence at a chunk boundary is not cut off from its context. This pipeline uses a 1000-character chunk size with a 200-character overlap."
+    },
+    {
+      "category": "retrieval",
+      "question": "How is the similarity score computed?",
+      "answer": "The query is embedded with the same model used for the documents and compared by cosine similarity. In a cosine space the reported distance equals one minus the cosine similarity, so similarity = 1 - distance."
+    },
+    {
+      "category": "hallucination",
+      "question": "How does RAG reduce hallucination?",
+      "answer": "The prompt instructs the LLM to answer only from the retrieved context. If the knowledge base has no relevant content, the pipeline answers 'no relevant context found' instead of letting the model invent an answer."
+    },
+    {
+      "category": "metadata",
+      "question": "Why does every Document carry metadata?",
+      "answer": "Metadata such as the source file and page number makes every retrieved chunk traceable and lets the vector store filter results, for example restricting a search to one author or one file."
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "description": "Golden evaluation set for the RAG pipeline. Each item pairs a question with the source file(s) that genuinely contain the answer, so retrieval can be scored objectively. 'expected_sources' is a list because some facts legitimately appear in more than one file - a hit against any of them counts.",
+  "items": [
+    {
+      "id": "q01",
+      "question": "What is the attention mechanism?",
+      "expected_sources": ["attention_is_all_you_need.pdf"],
+      "reference_answer": "Attention maps a query and a set of key-value pairs to an output vector, where the output is a weighted sum of the values and each weight comes from a compatibility function between the query and the corresponding key."
+    },
+    {
+      "id": "q02",
+      "question": "What does multi-head attention allow the model to do?",
+      "expected_sources": ["attention_is_all_you_need.pdf"],
+      "reference_answer": "It lets the model jointly attend to information from different representation subspaces at different positions by projecting queries, keys and values h times and running attention in parallel."
+    },
+    {
+      "id": "q03",
+      "question": "Why are positional encodings needed in a Transformer?",
+      "expected_sources": ["attention_is_all_you_need.pdf"],
+      "reference_answer": "Because the model has no recurrence and no convolution, positional encodings are added to the input embeddings to inject information about the relative or absolute position of tokens."
+    },
+    {
+      "id": "q04",
+      "question": "What is hard negative mining?",
+      "expected_sources": ["embedding_models_report.pdf"],
+      "reference_answer": "Instead of sampling random negatives, hard negatives are passages that are lexically or semantically similar to the query but do not answer it. Training against them forces finer distinctions and improves ranking."
+    },
+    {
+      "id": "q05",
+      "question": "How many dimensions does the all-MiniLM-L6-v2 embedding model produce?",
+      "expected_sources": ["embedding_models_report.pdf", "ai_models.csv"],
+      "reference_answer": "384 dimensions."
+    },
+    {
+      "id": "q06",
+      "question": "What is chunk overlap and why is it needed?",
+      "expected_sources": ["rag_faq.json"],
+      "reference_answer": "Chunk overlap is the number of characters shared between consecutive chunks. It preserves continuity so a sentence at a chunk boundary is not cut off from its context."
+    },
+    {
+      "id": "q07",
+      "question": "How does RAG reduce hallucination?",
+      "expected_sources": ["rag_systems_overview.pdf", "rag_faq.json"],
+      "reference_answer": "The prompt instructs the model to answer only from the retrieved context, so when the knowledge base has nothing relevant the system can say so instead of inventing an answer."
+    },
+    {
+      "id": "q08",
+      "question": "Which vector database is a fully managed cloud service?",
+      "expected_sources": ["vector_databases.xlsx"],
+      "reference_answer": "Pinecone."
+    },
+    {
+      "id": "q09",
+      "question": "Which language model has the largest context window and who provides it?",
+      "expected_sources": ["llm_catalog.db"],
+      "reference_answer": "Claude Sonnet, with a 200000-token context window, provided by Anthropic."
+    },
+    {
+      "id": "q10",
+      "question": "What are the three main types of machine learning?",
+      "expected_sources": ["machine_learning.txt"],
+      "reference_answer": "Supervised learning, unsupervised learning, and reinforcement learning."
+    },
+    {
+      "id": "q11",
+      "question": "What is Mean Reciprocal Rank?",
+      "expected_sources": ["retrieval_evaluation.docx"],
+      "reference_answer": "It rewards placing the correct document higher by averaging one divided by the rank of the first correct hit."
+    },
+    {
+      "id": "q12",
+      "question": "Who created the Python programming language and when was it first released?",
+      "expected_sources": ["python_intro.txt"],
+      "reference_answer": "Guido van Rossum created Python, first released in 1991."
+    }
+  ]
+}

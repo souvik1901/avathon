@@ -1,0 +1,7 @@
+Python Programming Introduction
+
+Python is a high-level, interpreted programming language known for its simplicity and readability. Created by Guido van Rossum and first released in 1991, Python has become one of the most popular programming languages for data science, machine learning, and artificial intelligence.
+
+Key features of Python include dynamic typing, automatic memory management, a comprehensive standard library, and support for multiple programming paradigms including procedural, object-oriented, and functional programming.
+
+Python's ecosystem for AI includes libraries such as NumPy for numerical computing, pandas for data manipulation, scikit-learn for classical machine learning, and PyTorch and TensorFlow for deep learning.

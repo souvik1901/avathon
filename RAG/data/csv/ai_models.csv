@@ -1,0 +1,5 @@
+model_name,model_type,dimensions,provider,description
+all-MiniLM-L6-v2,embedding,384,Hugging Face (sentence-transformers),Small open-source sentence embedding model producing 384-dimensional vectors. The default choice for fast RAG prototypes and the model used throughout this pipeline.
+all-mpnet-base-v2,embedding,768,Hugging Face (sentence-transformers),Higher-quality open-source embedding model producing 768-dimensional vectors. Slower than MiniLM but more accurate.
+text-embedding-3-small,embedding,1536,OpenAI,Commercial API embedding model producing 1536-dimensional vectors.
+llama-3.1-8b-instant,llm,n/a,Groq,Fast open-weights chat model hosted on Groq. Used for the generation step of this RAG pipeline.
